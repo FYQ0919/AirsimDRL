@@ -1,16 +1,8 @@
-'''
-Author: Sunghoon Hong
-Title: ra2c.py
-Description:
-    Recurrent Advantage Actor Critic Agent for Airsim
-Detail:
-    - not use join()
-    - reset for zero-image error
-    - tensorflow v1 + keras
-    - hard update for target critic
-
-'''
-
+###
+#Athor:Fu Yangqing
+#NUS ID: A0225413R
+#Motivation: Use A2C algorithm to make Quadrotor keep balance under interference
+###
 
 import os
 import csv
@@ -31,13 +23,13 @@ from PIL import Image
 
 from airsim_env import Env, ACTION
 
-agent_name = 'ra2c'
+agent = 'a2c'
 
 
 class A2CAgent(object):
-    
+
     def __init__(self, state_size, action_size, actor_lr, critic_lr, tau,
-                gamma, lambd, entropy, horizon, load_model):
+                 gamma, lambd, entropy, horizon, load_model):
         self.state_size = state_size
         self.action_size = action_size
         self.vel_size = 3
@@ -58,8 +50,8 @@ class A2CAgent(object):
         self.critic_update = self.build_critic_optimizer()
         self.sess.run(tf.global_variables_initializer())
         if load_model:
-            self.load_model('./save_model/'+ agent_name)
-        
+            self.load_model('./save_model/' + agent)
+
         self.target_critic.set_weights(self.critic.get_weights())
 
         self.states, self.actions, self.rewards = [], [], []
@@ -68,13 +60,17 @@ class A2CAgent(object):
         # shared network
         image = Input(shape=self.state_size)
         image_process = BatchNormalization()(image)
-        image_process = TimeDistributed(Conv2D(32, (8, 8), activation='elu', padding='same', kernel_initializer='he_normal'))(image_process)
+        image_process = TimeDistributed(
+            Conv2D(32, (8, 8), activation='elu', padding='same', kernel_initializer='he_normal'))(image_process)
         image_process = TimeDistributed(MaxPooling2D((2, 2)))(image_process)
-        image_process = TimeDistributed(Conv2D(32, (5, 5), activation='elu', kernel_initializer='he_normal'))(image_process)
+        image_process = TimeDistributed(Conv2D(32, (5, 5), activation='elu', kernel_initializer='he_normal'))(
+            image_process)
         image_process = TimeDistributed(MaxPooling2D((2, 2)))(image_process)
-        image_process = TimeDistributed(Conv2D(16, (3, 3), activation='elu', kernel_initializer='he_normal'))(image_process)
+        image_process = TimeDistributed(Conv2D(16, (3, 3), activation='elu', kernel_initializer='he_normal'))(
+            image_process)
         image_process = TimeDistributed(MaxPooling2D((2, 2)))(image_process)
-        image_process = TimeDistributed(Conv2D(8, (1, 1), activation='elu', kernel_initializer='he_normal'))(image_process)
+        image_process = TimeDistributed(Conv2D(8, (1, 1), activation='elu', kernel_initializer='he_normal'))(
+            image_process)
         image_process = TimeDistributed(Flatten())(image_process)
         image_process = GRU(64, kernel_initializer='he_normal', use_bias=False)(image_process)
         image_process = BatchNormalization()(image_process)
@@ -85,14 +81,15 @@ class A2CAgent(object):
         # vel_process = Dense(6, kernel_initializer='he_normal', use_bias=False)(vel)
         # vel_process = BatchNormalization()(vel_process)
         # vel_process = Activation('tanh')(vel_process)
-        
+
         state_process = image_process
 
         # Actor
         policy = Dense(128, kernel_initializer='he_normal', use_bias=False)(state_process)
         policy = ELU()(policy)
         policy = BatchNormalization()(policy)
-        policy = Dense(self.action_size, activation='softmax', kernel_initializer=tf.random_uniform_initializer(minval=-2e-3, maxval=2e-3))(policy)
+        policy = Dense(self.action_size, activation='softmax',
+                       kernel_initializer=tf.random_uniform_initializer(minval=-2e-3, maxval=2e-3))(policy)
         actor = Model(inputs=[image, vel], outputs=policy)
 
         # Critic
@@ -104,7 +101,7 @@ class A2CAgent(object):
 
         actor._make_predict_function()
         critic._make_predict_function()
-        
+
         return actor, critic
 
     def build_actor_optimizer(self):
@@ -156,7 +153,6 @@ class A2CAgent(object):
         images = np.zeros([len(self.states) + 1] + self.state_size, dtype=np.float32)
         vels = np.zeros([len(self.states) + 1, self.vel_size], dtype=np.float32)
         for i in range(len(self.states)):
-            print(self.states[i])
             images[i], vels[i] = self.states[i]
         images[-1], vels[-1] = next_state
         states = [images, vels]
@@ -169,7 +165,7 @@ class A2CAgent(object):
         if done:
             values[-1] = np.float32([0])
         for t in reversed(range(len(self.rewards))):
-            delta = self.rewards[t] + self.gamma * values[t+1] - values[t]
+            delta = self.rewards[t] + self.gamma * values[t + 1] - values[t]
             gae = delta + self.gamma * self.lambd * gae
             advantage[t] = gae
 
@@ -182,7 +178,7 @@ class A2CAgent(object):
         critic_loss = self.critic_update(states + [target_val])
         self.clear_sample()
         return actor_loss[0], critic_loss[0]
-    
+
     def append_sample(self, state, action, reward):
         self.states.append(state)
         act = np.zeros(self.action_size)
@@ -197,7 +193,7 @@ class A2CAgent(object):
 
     def update_target_model(self):
         self.target_critic.set_weights(self.critic.get_weights())
-        
+
     def load_model(self, name):
         if os.path.exists(name + '_actor.h5'):
             self.actor.load_weights(name + '_actor.h5')
@@ -210,9 +206,11 @@ class A2CAgent(object):
         self.actor.save_weights(name + '_actor.h5')
         self.critic.save_weights(name + '_critic.h5')
 
+
 '''
 Environment interaction
 '''
+
 
 def transform_input(responses, img_height, img_width):
     img1d = np.array(responses[0].image_data_float, dtype=np.float)
@@ -225,6 +223,7 @@ def transform_input(responses, img_height, img_width):
     image /= 255.0
     return image
 
+
 def interpret_action(action):
     scaling_factor = 1.
     if action == 0:
@@ -236,41 +235,37 @@ def interpret_action(action):
     elif action == 3:
         quad_offset = (0, 0, scaling_factor)
     elif action == 4:
-        quad_offset = (-scaling_factor, 0, 0)    
+        quad_offset = (-scaling_factor, 0, 0)
     elif action == 5:
         quad_offset = (0, -scaling_factor, 0)
     elif action == 6:
         quad_offset = (0, 0, -scaling_factor)
-    
+
     return quad_offset
 
 
 if __name__ == '__main__':
 
-    # CUDA config
-    # tf_config = tf.ConfigProto()
-    # tf_config.gpu_options.allow_growth = True
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose',    action='store_true')
+    parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--load_model', action='store_true')
-    parser.add_argument('--play',       action='store_true')
-    parser.add_argument('--img_height', type=int,   default=72)
-    parser.add_argument('--img_width',  type=int,   default=128)
-    parser.add_argument('--actor_lr',   type=float, default=5e-5)
-    parser.add_argument('--critic_lr',  type=float, default=1e-4)
-    parser.add_argument('--tau',        type=float, default=0.1)
-    parser.add_argument('--gamma',      type=float, default=0.99)
-    parser.add_argument('--lambd',      type=float, default=0.90)
-    parser.add_argument('--entropy',    type=float, default=1e-3)
-    parser.add_argument('--horizon',    type=int,   default=32)
-    parser.add_argument('--seqsize',    type=int,   default=5)
-    parser.add_argument('--target_rate',type=int,   default=1000)
+    parser.add_argument('--play', action='store_true')
+    parser.add_argument('--img_height', type=int, default=72)
+    parser.add_argument('--img_width', type=int, default=128)
+    parser.add_argument('--actor_lr', type=float, default=5e-5)
+    parser.add_argument('--critic_lr', type=float, default=1e-4)
+    parser.add_argument('--tau', type=float, default=0.1)
+    parser.add_argument('--gamma', type=float, default=0.99)
+    parser.add_argument('--lambd', type=float, default=0.90)
+    parser.add_argument('--entropy', type=float, default=1e-3)
+    parser.add_argument('--horizon', type=int, default=32)
+    parser.add_argument('--seqsize', type=int, default=5)
+    parser.add_argument('--target_rate', type=int, default=1000)
 
     args = parser.parse_args()
 
-    if not os.path.exists('save_graph/'+ agent_name):
-        os.makedirs('save_graph/'+ agent_name)
+    if not os.path.exists('save_graph/' + agent):
+        os.makedirs('save_graph/' + agent)
     if not os.path.exists('save_stat'):
         os.makedirs('save_stat')
     if not os.path.exists('save_model'):
@@ -295,14 +290,14 @@ if __name__ == '__main__':
     # Train
     episode = 0
     highscoreY = 0.
-    if os.path.exists('save_stat/'+ agent_name + '_stat.csv'):
-        with open('save_stat/'+ agent_name + '_stat.csv', 'r') as f:
+    if os.path.exists('save_stat/' + agent + '_stat.csv'):
+        with open('save_stat/' + agent + '_stat.csv', 'r') as f:
             read = csv.reader(f)
             episode = int(float(next(reversed(list(read)))[0]))
             print('Last episode:', episode)
             episode += 1
-    if os.path.exists('save_stat/'+ agent_name + '_highscore.scv'):
-        with open('save_stat/'+ agent_name + '_highscore.csv', 'r') as f:
+    if os.path.exists('save_stat/' + agent + '_highscore.scv'):
+        with open('save_stat/' + agent + '_highscore.csv', 'r') as f:
             read = csv.reader(f)
             highscoreY = float(next(reversed(list(read)))[0])
             print('Best Y:', highscoreY)
@@ -358,18 +353,19 @@ if __name__ == '__main__':
                     print('%s' % (ACTION[action]), end='\r', flush=True)
 
                     if args.verbose:
-                        print('Step %d Action %s Reward %.2f Info %s:' % (timestep, real_action, reward, info['status']))
+                        print(
+                            'Step %d Action %s Reward %.2f Info %s:' % (timestep, real_action, reward, info['status']))
 
                     state = next_state
 
                 if bug:
                     continue
-                
+
                 pmax /= timestep
 
                 # done
                 print('Ep %d: BestY %.3f Step %d Score %.2f Pmax %.2f'
-                        % (episode, bestY, timestep, score, pmax))
+                      % (episode, bestY, timestep, score, pmax))
 
                 episode += 1
             except KeyboardInterrupt:
@@ -379,14 +375,14 @@ if __name__ == '__main__':
         # Train
         time_limit = 600
         highscoreY = 0.
-        if os.path.exists('save_stat/'+ agent_name + '_stat.csv'):
-            with open('save_stat/'+ agent_name + '_stat.csv', 'r') as f:
+        if os.path.exists('save_stat/' + agent + '_stat.csv'):
+            with open('save_stat/' + agent + '_stat.csv', 'r') as f:
                 read = csv.reader(f)
                 episode = int(float(next(reversed(list(read)))[0]))
                 print('Last episode:', episode)
                 episode += 1
-        if os.path.exists('save_stat/'+ agent_name + '_highscore.csv'):
-            with open('save_stat/'+ agent_name + '_highscore.csv', 'r') as f:
+        if os.path.exists('save_stat/' + agent + '_highscore.csv'):
+            with open('save_stat/' + agent + '_highscore.csv', 'r') as f:
                 read = csv.reader(f)
                 highscoreY = float(next(reversed(list(read)))[0])
                 print('Best Y:', highscoreY)
@@ -460,23 +456,24 @@ if __name__ == '__main__':
 
                 if args.verbose or episode % 10 == 0:
                     print('Ep %d: BestY %.3f Step %d Score %.2f Pmax %.2f'
-                            % (episode, bestY, timestep, score, pmax))
+                          % (episode, bestY, timestep, score, pmax))
                 stats = [
                     episode, timestep, score, bestY, \
                     pmax, actor_loss, critic_loss, info['level'], info['status']
                 ]
 
                 # log stats
-                with open('save_stat/'+ agent_name + '_stat.csv', 'a', encoding='utf-8', newline='') as f:
+                with open('save_stat/' + agent + '_stat.csv', 'a', encoding='utf-8', newline='') as f:
                     wr = csv.writer(f)
                     wr.writerow(['%.4f' % s if type(s) is float else s for s in stats])
                 if highscoreY < bestY:
                     highscoreY = bestY
-                    with open('save_stat/'+ agent_name + '_highscore.csv', 'w', encoding='utf-8', newline='') as f:
+                    with open('save_stat/' + agent + '_highscore.csv', 'w', encoding='utf-8', newline='') as f:
                         wr = csv.writer(f)
-                        wr.writerow('%.4f' % s if type(s) is float else s for s in [highscoreY, episode, score, dt.now().strftime('%Y-%m-%d %H:%M:%S')])
-                    agent.save_model('./save_model/'+ agent_name + '_best')
-                agent.save_model('./save_model/'+ agent_name)
+                        wr.writerow('%.4f' % s if type(s) is float else s for s in
+                                    [highscoreY, episode, score, dt.now().strftime('%Y-%m-%d %H:%M:%S')])
+                    agent.save_model('./save_model/' + agent + '_best')
+                agent.save_model('./save_model/' + agent)
                 episode += 1
             except KeyboardInterrupt:
                 env.disconnect()

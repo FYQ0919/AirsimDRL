@@ -22,7 +22,7 @@ from collections import deque
 from datetime import datetime as dt
 import numpy as np
 import tensorflow as tf
-import keras.backend as K
+from keras import backend as K
 from keras.layers import TimeDistributed, BatchNormalization, Flatten, Add, Lambda, Concatenate
 from keras.layers import Conv2D, MaxPooling2D, Dense, GRU, Input, ELU, Activation
 from keras.optimizers import Adam
@@ -31,6 +31,7 @@ from PIL import Image
 import cv2
 from airsim_env import Env
 from PER import Memory
+
 
 np.set_printoptions(suppress=True, precision=4)
 agent_name = 'td3_per'
@@ -194,7 +195,7 @@ class TD3Agent(object):
         # loss = K.mean(0.5 * K.square(quadratic) + linear)
 
         optimizer = Adam(lr=self.critic_lr)
-        updates = optimizer.get_updates(self.critic.trainable_weights, [], loss)
+        updates = optimizer.get_updates(self.critic.trainable_weights,[],loss)
         train = K.function(
             [self.critic.input[0], self.critic.input[1], self.critic.input[2], y],
             [pred, loss],
@@ -373,8 +374,8 @@ if __name__ == '__main__':
         os.makedirs('save_model')
 
     # CUDA config
-    tf_config = tf.ConfigProto()
-    tf_config.gpu_options.allow_growth = True
+    # tf_config = tf.ConfigProto()
+    # tf_config.gpu_options.allow_growth = True
 
     # Make RL agent
     state_size = [args.seqsize, args.img_height, args.img_width, 1]

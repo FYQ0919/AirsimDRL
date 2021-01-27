@@ -355,7 +355,7 @@ if __name__ == '__main__':
                 bug = False
 
                 # stats
-                bestY, timestep, score, avgvel, avgQ = 0., 0, 0., 0., 0.
+                bestX, timestep, score, avgvel, avgQ = 0., 0, 0., 0., 0.
 
                 observe = env.reset()
                 image, vel = observe
@@ -394,8 +394,8 @@ if __name__ == '__main__':
                     avgQ += float(agent.critic.predict([state[0], state[1], action.reshape(1, -1)])[0][0])
                     avgvel += float(np.linalg.norm(real_action))
                     score += reward
-                    if info['Y'] > bestY:
-                        bestY = info['Y']
+                    if info['X'] > bestX:
+                        bestX = info['X']
                     print('%s' % (real_action), end='\r', flush=True)
 
                     if args.verbose:
@@ -410,8 +410,8 @@ if __name__ == '__main__':
                 avgvel /= timestep
 
                 # done
-                print('Ep %d: BestY %.3f Step %d Score %.2f AvgQ %.2f AvgVel %.2f'
-                        % (episode, bestY, timestep, score, avgQ, avgvel))
+                print('Ep %d: BestX %.3f Step %d Score %.2f AvgQ %.2f AvgVel %.2f'
+                        % (episode, bestX, timestep, score, avgQ, avgvel))
 
                 episode += 1
             except KeyboardInterrupt:
@@ -420,7 +420,7 @@ if __name__ == '__main__':
     else:
         # Train
         time_limit = 600
-        highscoreY = 0.
+        highscoreX = 0.
         if os.path.exists('save_stat/'+ agent_name + '_stat.csv'):
             with open('save_stat/'+ agent_name + '_stat.csv', 'r') as f:
                 read = csv.reader(f)
@@ -430,8 +430,8 @@ if __name__ == '__main__':
         if os.path.exists('save_stat/'+ agent_name + '_highscore.csv'):
             with open('save_stat/'+ agent_name + '_highscore.csv', 'r') as f:
                 read = csv.reader(f)
-                highscoreY = float(next(reversed(list(read)))[0])
-                print('Best Y:', highscoreY)
+                highscoreX = float(next(reversed(list(read)))[0])
+                print('Best X:', highscoreX)
         global_step = 0
         while True:
             try:
@@ -439,7 +439,7 @@ if __name__ == '__main__':
                 bug = False
                 random = (np.random.random() < args.random)
                 # stats
-                bestY, timestep, score, avgvel, avgQ, avgAct = 0., 0, 0., 0., 0., 0.
+                bestX, timestep, score, avgvel, avgQ, avgAct = 0., 0, 0., 0., 0., 0.
                 train_num, actor_loss, critic_loss, tds, maxtd = 0, 0., 0., 0., 0.
 
                 observe = env.reset()
@@ -489,8 +489,8 @@ if __name__ == '__main__':
                     avgvel += float(np.linalg.norm(real_policy))
                     avgAct += float(np.linalg.norm(real_action))
                     score += reward
-                    if info['Y'] > bestY:
-                        bestY = info['Y']
+                    if info['X'] > bestX:
+                        bestX = info['X']
 
                     print('%s | %s' % (real_action, real_policy), end='\r', flush=True)
 
@@ -515,10 +515,10 @@ if __name__ == '__main__':
 
                 # done
                 if args.verbose or episode % 10 == 0:
-                    print('Ep %d: BestY %.3f Step %d Score %.2f Q %.2f Vel %.2f Act %.2f'
-                            % (episode, bestY, timestep, score, avgQ, avgvel, avgAct))
+                    print('Ep %d: BestX %.3f Step %d Score %.2f Q %.2f Vel %.2f Act %.2f'
+                            % (episode, bestX, timestep, score, avgQ, avgvel, avgAct))
                 stats = [
-                    episode, timestep, score, bestY, avgvel, \
+                    episode, timestep, score, bestX, avgvel, \
                     actor_loss, critic_loss, info['level'], avgQ, avgAct, info['status'],
                     tds, maxtd
                 ]
@@ -526,11 +526,11 @@ if __name__ == '__main__':
                 with open('save_stat/'+ agent_name + '_stat.csv', 'a', encoding='utf-8', newline='') as f:
                     wr = csv.writer(f)
                     wr.writerow(['%.4f' % s if type(s) is float else s for s in stats])
-                if highscoreY < bestY:
-                    highscoreY = bestY
+                if highscoreX < bestX:
+                    highscoreX = bestX
                     with open('save_stat/'+ agent_name + '_highscore.csv', 'w', encoding='utf-8', newline='') as f:
                         wr = csv.writer(f)
-                        wr.writerow('%.4f' % s if type(s) is float else s for s in [highscoreY, episode, score, dt.now().strftime('%Y-%m-%d %H:%M:%S')])
+                        wr.writerow('%.4f' % s if type(s) is float else s for s in [highscoreX, episode, score, dt.now().strftime('%Y-%m-%d %H:%M:%S')])
                     agent.save_model('./save_model/'+ agent_name + '_best')
                 agent.save_model('./save_model/'+ agent_name)
                 episode += 1

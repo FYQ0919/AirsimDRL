@@ -5,10 +5,12 @@ import config
 
 clockspeed = 1
 timeslice = 0.5 / clockspeed
-goalY = 57
-outY = -0.5
-floorZ = 1.18
-goals = [7, 17, 27.5, 45, goalY]
+goalX = 14
+outX = -0.5
+outY =5
+floorZ = 5
+goals = [3, 6, 9, 12, goalX]
+object_pos = [14,0,1]
 speed_limit = 0.2
 ACTION = ['00', '+x', '+y', '+z', '-x', '-y', '-z']
 
@@ -77,23 +79,23 @@ class Env:
         quad_vel = self.client.getMultirotorState().kinematics_estimated.linear_velocity
 
         # decide whether done
-        dead = has_collided or quad_pos.y_val <= outY
-        done = dead or quad_pos.y_val >= goalY
+        dead = has_collided or quad_pos.x_val <= outX
+        done = dead or quad_pos.x_val >= goalX
 
         # compute reward
         reward = self.compute_reward(quad_pos, quad_vel, dead)
 
         # log info
         info = {}
-        info['Y'] = quad_pos.y_val
+        info['X'] = quad_pos.x_val
         info['level'] = self.level
         if landed:
             info['status'] = 'landed'
         elif has_collided:
             info['status'] = 'collision'
-        elif quad_pos.y_val <= outY:
+        elif quad_pos.x_val <= outX:
             info['status'] = 'out'
-        elif quad_pos.y_val >= goalY:
+        elif quad_pos.x_val >= goalX:
             info['status'] = 'goal'
         else:
             info['status'] = 'going'
@@ -103,6 +105,9 @@ class Env:
 
     def compute_reward(self, quad_pos, quad_vel, dead):
         vel = np.array([quad_vel.x_val, quad_vel.y_val, quad_vel.z_val], dtype=np.float)
+        pos = np.array([quad_pos.x_val,quad_pos.y_val,quad_pos.z_val],dtype=np.float)
+        bias = pos - object_pos
+        success = np.linalg.norm(bias) < 2
         speed = np.linalg.norm(vel)
         if dead:
             reward = config.reward['dead']
