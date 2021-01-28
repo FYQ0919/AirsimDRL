@@ -8,12 +8,13 @@ clockspeed = 1
 timeslice = 0.5 / clockspeed
 goalX = 15
 outX = -0.5
-outY =5
+outY = 5
 floorZ = 5
 goals = [3, 6, 9, 12, goalX]
-object_pos = [14,0,1]
+object_pos = [14, 0, 1]
 speed_limit = 0.2
 ACTION = ['00', '+x', '+y', '+z', '-x', '-y', '-z']
+
 
 class Env:
     def __init__(self):
@@ -71,10 +72,16 @@ class Env:
                 has_collided = True
                 break
         self.client.simPause(True)
-
+        quad_pos = self.client.getMultirotorState().kinematics_estimated.position
+        pos = np.array([quad_pos.x_val,quad_pos.y_val,quad_pos.z_val])
         # observe with depth camera
         responses = self.client.simGetImages([airsim.ImageRequest(1, airsim.ImageType.DepthVis, True)])
-
+        force = -self.add_rep_filed(pos,[5,0,-5])
+        force += -self.add_rep_field(pos,[2,-3,-5])
+        foce  += -self.add_rep_field(pos,[2,3,-5])
+        foce  += -self.add_rep_field(pos,[7,5,-5])
+        foce  += -self.add_rep_field(pos,[10,-5,-5])
+        force += self.add_att_filed(pos,object_pos)
         # get quadrotor states
         quad_pos = self.client.getMultirotorState().kinematics_estimated.position
         quad_vel = self.client.getMultirotorState().kinematics_estimated.linear_velocity
@@ -102,11 +109,11 @@ class Env:
             info['status'] = 'going'
         quad_vel = np.array([quad_vel.x_val, quad_vel.y_val, quad_vel.z_val])
         observation = [responses, quad_vel]
-        return observation, reward, done, info
+        return observation, reward, done, info,force
 
     def compute_reward(self, quad_pos, quad_vel, dead):
         vel = np.array([quad_vel.x_val, quad_vel.y_val, quad_vel.z_val], dtype=np.float)
-        pos = np.array([quad_pos.x_val,quad_pos.y_val,quad_pos.z_val],dtype=np.float)
+        pos = np.array([quad_pos.x_val, quad_pos.y_val, quad_pos.z_val], dtype=np.float)
         bias = pos - object_pos
         success = np.linalg.norm(bias) < 2
         speed = np.linalg.norm(vel)
@@ -128,7 +135,42 @@ class Env:
         #     reward = config.reward['normal']
         return reward
 
-    
+    def add_rep_field(self, pos1, pos2):
+        dis = pos1 - pos2
+        force = [0, 0, 0]
+        q = 3
+        D = np.linalg.norm(dis)
+        theta = math.atan(dis[1] / dis[0])
+        alpha = math.acos(math.sqrt(dis[0] ** 2 + dis[1] ** 2))
+        if D < q:
+            all_force = 0.5 * 1 * ((1 / dis) - (1 / q)) ** 2
+            force[0] = all_force * math.cos(alpha) * math.cos(theta)
+            force[1] = all_force * math.cos(alpha) * math.sin(alpha)
+            force[3] = all_force * math.sin(alpha)
+            return force
+        if D > q:
+            return force
+
+    def add_att_filed(self, pos1, pos2):
+        dis = pos1 - pos2
+        force = [0, 0, 0]
+        d = 5
+        D = np.linalg.norm(dis)
+        theta = math.atan(dis[1] / dis[0])
+        alpha = math.acos(math.sqrt(dis[0] ** 2 + dis[1] ** 2))
+        if D < d:
+            all_force = 0.5 * 0.1 * D ** 2
+            force[0] = all_force * math.cos(alpha) * math.cos(theta)
+            force[1] = all_force * math.cos(alpha) * math.sin(alpha)
+            force[3] = all_force * math.sin(alpha)
+            return force
+        if D > d:
+            all_force = d * 0.1 * D - 0.5 * 0.1 * d ** 2
+            force[0] = all_force * math.cos(alpha) * math.cos(theta)
+            force[1] = all_force * math.cos(alpha) * math.sin(alpha)
+            force[3] = all_force * math.sin(alpha)
+            return  force
+
     def disconnect(self):
         self.client.enableApiControl(False)
         self.client.armDisarm(False)
