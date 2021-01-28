@@ -286,7 +286,7 @@ def transform_input(responses, img_height, img_width):
 
 def transform_action(action):
     real_action = np.array(action)
-    real_action[1] += 0.5
+    real_action[0] += 0.5
     return real_action
 
 if __name__ == '__main__':
@@ -342,7 +342,7 @@ if __name__ == '__main__':
         epsilon=args.epsilon,
         epsilon_end=args.epsilon_end,
         decay_step=args.decay_step,
-        load_model=args.load_model
+        load_model=True
     )
 
     episode = 0

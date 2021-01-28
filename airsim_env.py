@@ -5,7 +5,7 @@ import config
 
 clockspeed = 1
 timeslice = 0.5 / clockspeed
-goalX = 14
+goalX = 15
 outX = -0.5
 outY =5
 floorZ = 5
@@ -111,7 +111,7 @@ class Env:
         speed = np.linalg.norm(vel)
         if dead:
             reward = config.reward['dead']
-        elif quad_pos.y_val >= goals[self.level]:
+        elif quad_pos.x_val >= goals[self.level]:
             self.level += 1
             # reward = config.reward['forward'] * (1 + self.level / len(goals))
             reward = config.reward['goal'] * (1 + self.level / len(goals))
@@ -119,6 +119,8 @@ class Env:
             reward = config.reward['slow']
         else:
             reward = float(vel[1]) * 0.1
+        if success:
+            reward += 5
         # elif vel[1] > 0:
         #     reward = config.reward['forward'] * (1 + self.level / len(goals))
         # else:
